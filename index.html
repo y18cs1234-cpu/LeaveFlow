@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LeaveFlow — Leave Management</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#"><span class="brand-mark">L</span><span>LeaveFlow</span></a>
+      <div id="user-area" class="user-area hidden">
+        <span id="user-label"></span>
+        <button id="logout-btn" class="btn btn-quiet">Sign out</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="setup-notice" class="notice hidden"></section>
+
+      <section id="auth-view" class="auth-layout">
+        <div class="auth-intro">
+          <span class="eyebrow">SIMPLE • SHARED • SECURE</span>
+          <h1>Leave management,<br><span>made clear.</span></h1>
+          <p>Apply for time off, follow request status and review team requests from one place.</p>
+          <div class="mini-stats">
+            <div><strong>01</strong><span>Apply</span></div>
+            <div><strong>02</strong><span>Review</span></div>
+            <div><strong>03</strong><span>Approve</span></div>
+          </div>
+        </div>
+        <div class="auth-card">
+          <div class="tabs">
+            <button class="tab active" data-auth-tab="login">Sign in</button>
+            <button class="tab" data-auth-tab="signup">Create account</button>
+          </div>
+          <form id="login-form" class="auth-form">
+            <h2>Welcome back</h2>
+            <p class="muted">Sign in to your LeaveFlow account.</p>
+            <label>Email address<input id="login-email" type="email" autocomplete="email" required placeholder="you@company.com"></label>
+            <label>Password<input id="login-password" type="password" autocomplete="current-password" required placeholder="Your password"></label>
+            <button class="btn btn-primary full" type="submit">Sign in</button>
+          </form>
+          <form id="signup-form" class="auth-form hidden">
+            <h2>Create your account</h2>
+            <p class="muted">New accounts start with the Employee role.</p>
+            <label>Full name<input id="signup-name" type="text" required maxlength="80" placeholder="Your name"></label>
+            <label>Work email<input id="signup-email" type="email" autocomplete="email" required placeholder="you@company.com"></label>
+            <label>Password<input id="signup-password" type="password" minlength="8" required autocomplete="new-password" placeholder="At least 8 characters"></label>
+            <button class="btn btn-primary full" type="submit">Create account</button>
+          </form>
+          <p id="auth-message" class="message" role="status"></p>
+          <p class="fine-print">Demo project. Use test accounts only; do not enter real employee information.</p>
+        </div>
+      </section>
+
+      <section id="app-view" class="hidden">
+        <div class="welcome-row">
+          <div><span class="eyebrow" id="role-label">EMPLOYEE WORKSPACE</span><h1 id="welcome-title">Good day</h1><p class="muted">Here is your leave overview.</p></div>
+          <div class="today-chip" id="today-chip"></div>
+        </div>
+
+        <div id="employee-panel">
+          <div class="stats-grid">
+            <article class="stat-card"><span>Annual leave allowance</span><strong>20 <small>days</small></strong><em>Sample policy</em></article>
+            <article class="stat-card"><span>Requests pending</span><strong id="pending-count">0</strong><em>Awaiting manager review</em></article>
+            <article class="stat-card"><span>Approved requests</span><strong id="approved-count">0</strong><em>This account's requests</em></article>
+          </div>
+          <div class="content-grid">
+            <section class="panel">
+              <div class="panel-heading"><div><span class="eyebrow">NEW REQUEST</span><h2>Apply for leave</h2></div></div>
+              <form id="leave-form" class="leave-form">
+                <label>Leave type<select id="leave-type" required><option value="Annual leave">Annual leave</option><option value="Sick leave">Sick leave</option><option value="Personal leave">Personal leave</option><option value="Unpaid leave">Unpaid leave</option></select></label>
+                <div class="form-row">
+                  <label>Start date<input id="start-date" type="date" required></label>
+                  <label>End date<input id="end-date" type="date" required></label>
+                </div>
+                <label>Reason<textarea id="leave-reason" rows="3" maxlength="1000" required placeholder="Add a short reason for your request"></textarea></label>
+                <button class="btn btn-primary" type="submit">Submit leave request</button>
+                <p id="leave-message" class="message" role="status"></p>
+              </form>
+            </section>
+            <section class="panel">
+              <div class="panel-heading"><div><span class="eyebrow">MY ACTIVITY</span><h2>My leave requests</h2></div><button id="refresh-employee" class="btn btn-quiet btn-small">Refresh</button></div>
+              <div id="my-requests" class="request-list"><div class="empty-state">Your requests will appear here.</div></div>
+            </section>
+          </div>
+        </div>
+
+        <div id="manager-panel" class="hidden">
+          <div class="stats-grid">
+            <article class="stat-card"><span>Waiting for review</span><strong id="manager-pending-count">0</strong><em>Requests in the queue</em></article>
+            <article class="stat-card"><span>Approved</span><strong id="manager-approved-count">0</strong><em>All visible requests</em></article>
+            <article class="stat-card"><span>Rejected</span><strong id="manager-rejected-count">0</strong><em>All visible requests</em></article>
+          </div>
+          <section class="panel">
+            <div class="panel-heading"><div><span class="eyebrow">TEAM WORKFLOW</span><h2>Leave approval queue</h2></div><button id="refresh-manager" class="btn btn-quiet btn-small">Refresh</button></div>
+            <div id="approval-queue" class="request-list"><div class="empty-state">Loading requests…</div></div>
+          </section>
+        </div>
+
+        <div id="hr-panel" class="hidden">
+          <div class="stats-grid">
+            <article class="stat-card"><span>Total requests</span><strong id="hr-total-count">0</strong><em>Visible in this workspace</em></article>
+            <article class="stat-card"><span>Pending</span><strong id="hr-pending-count">0</strong><em>Awaiting review</em></article>
+            <article class="stat-card"><span>Approved</span><strong id="hr-approved-count">0</strong><em>Approved requests</em></article>
+          </div>
+          <section class="panel">
+            <div class="panel-heading"><div><span class="eyebrow">HR OVERVIEW</span><h2>All leave requests</h2></div><button id="refresh-hr" class="btn btn-quiet btn-small">Refresh</button></div>
+            <div id="hr-requests" class="request-list"><div class="empty-state">Loading requests…</div></div>
+          </section>
+        </div>
+        <footer class="app-footer">LeaveFlow demo · Sample leave policy · Secure access enforced by database policies</footer>
+      </section>
+    </main>
+  </div>
+
+  <template id="request-template">
+    <article class="request-card">
+      <div class="request-main">
+        <div class="request-top"><strong class="request-person"></strong><span class="status"></span></div>
+        <div class="request-meta"></div>
+        <p class="request-reason"></p>
+        <p class="request-review-note hidden"></p>
+      </div>
+      <div class="request-actions hidden">
+        <button class="btn btn-primary btn-small approve-btn">Approve</button>
+        <button class="btn btn-danger btn-small reject-btn">Reject</button>
+      </div>
+    </article>
+  </template>
+</body>
+</html>
